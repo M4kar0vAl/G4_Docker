@@ -1,0 +1,53 @@
+services:
+  django:
+    container_name: django
+    build: ./django_project
+    depends_on:
+      db:
+        condition: 'service_healthy'
+        restart: true
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
+    volumes:
+      - static_volume:/app/static
+    networks:
+      - app-net
+
+  nginx:
+    image: nginx
+    depends_on:
+      django:
+        condition: 'service_started'
+    volumes:
+      - static_volume:/usr/share/nginx/html
+    networks:
+      - app-net
+    ports:
+      - 80:80
+
+
+  db:
+    image: postgres:alpine
+    volumes:
+      - db_data:/var/lib/postgresql/data/
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+    networks:
+      - app-net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+      timeout: 10s
+
+networks:
+  app-net:
+
+volumes:
+  db_data:
+  static_volume:
